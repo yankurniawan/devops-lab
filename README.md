@@ -16,7 +16,9 @@ The Ansible roles can be found in [roles](roles) folder.
 
 The webserver instances are located in the private subnets. To access the EC2 instances via SSH, connect to the VPN server first. 
 
-Open <https://13.55.74.255:943> to login to the OpenVPN Access Server. You can use any OpenVPN client to connect.
+Open <https://13.55.74.255:943> to login to the OpenVPN Access Server. You can download the client and login using the credentials or autologin profile.
+
+
 
 
 
