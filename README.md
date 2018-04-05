@@ -14,11 +14,13 @@ Config management is done using Ansible AWX. Each time a new EC2 instance launch
 
 The Ansible roles can be found in [roles](roles) folder. 
 
+Rewrite rule is added to redirect HTTP request to HTTPS.
+
 The webserver instances are located in the private subnets. To access the EC2 instances via SSH, connect to the VPN server first. 
 
 Open <https://13.55.74.255:943> to login to the OpenVPN Access Server. You can download the client and login using the credentials or autologin profile.
 
-
+To further automate the management of infrastructure, a CI server like Jenkins can be added to run a job or pipeline for CloudFormation stack creation/update. A python script can be used to run the stack creation/update.
 
 
 
