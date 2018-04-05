@@ -4,3 +4,11 @@
 
 - name: copy template
   template: src=index.html.j2 dest=/var/www/html/index.html
+
+- name: copy files
+  copy: src="{{ item.src }}" dest="{{ item.dest }}"
+  with_items:
+    - src: 404.html
+      dest: /var/www/html/404.html
+    - src: htaccess
+      dest: /var/www/html/.htaccess

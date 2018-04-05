@@ -29,7 +29,14 @@ Parameters:
     Default: ami-7777b515 
     Description: OpenVPN Server AMI
     Type: String
-
+  PublicZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Route53 public zone id
+    Default: ZZ862RO6V0BP
+  PublicZoneName:
+    Type: String
+    Description: Route53 public zone name
+    Default: yankurniawan.com.
 Resources:
   WebServerGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -78,9 +85,7 @@ Resources:
           #!/bin/bash
           exec > >(tee /var/log/userdata.log)
           exec 2>&1
-          curl -f -H 'Content-Type: application/json' -XPOST \
-               -d '{"host_config_key": "f4a5cd29c9fca4cde2a45fadb8dd5777"}' \
-               http://awx.yankurniawan.com:8443/api/v2/job_templates/8/callback
+          curl --data "host_config_key=f4a5cd29c9fca4cde2a45fadb8dd5777" http://awx.yankurniawan.local:8443/api/v2/job_templates/8/callback/
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerGroup --region ${AWS::Region}
 
   AppELB:
@@ -110,7 +115,7 @@ Resources:
           PolicyNames:
             - ELBSecurityPolicy-2016-08
       HealthCheck:
-        Target: HTTPS:443/index.html
+        Target: HTTP:80/index.html
         HealthyThreshold: 3
         UnhealthyThreshold: 5
         Interval: 30
@@ -132,4 +137,15 @@ Resources:
         -
           Key: Name
           Value: !Sub ${AWS::StackName}-OpenVPNServer
+  ELBDNSRecord:
+    Type: AWS::Route53::RecordSetGroup
+    Properties:
+      HostedZoneName: !Ref PublicZoneName
+      Comment: Alias for webserver ELB
+      RecordSets:
+      - Name: devops.yankurniawan.com.
+        Type: A
+        AliasTarget:
+          HostedZoneId: !GetAtt AppELB.CanonicalHostedZoneNameID
+          DNSName: !GetAtt AppELB.DNSName
 
