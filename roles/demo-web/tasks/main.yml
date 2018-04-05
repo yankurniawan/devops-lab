@@ -1,0 +1,6 @@
+---
+- name: gather ec2 facts
+  ec2_metadata_facts:
+
+- name: copy template
+  template: src=index.html.j2 dest=/var/www/html/index.html

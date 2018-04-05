@@ -1,0 +1,388 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Network Stack with Security Groups
+Parameters:
+  VpcCidr: 
+    Description: CIDR block for VPC
+    Type: String
+    AllowedPattern: ((\d{1,3})\.){3}\d{1,3}/\d{1,2}
+    ConstraintDescription: CIDR Block (eg 10.0.0.0/16)
+    Default: 10.0.0.0/16
+  PublicSubnet0Cidr: 
+    Description: CIDR block for PublicSubnet0
+    Type: String
+    AllowedPattern: ((\d{1,3})\.){3}\d{1,3}/\d{1,2}
+    ConstraintDescription: CIDR Block (eg 10.0.0.0/16)
+    Default: 10.0.1.0/24
+  PublicSubnet1Cidr: 
+    Description: CIDR block for PublicSubnet1
+    Type: String
+    AllowedPattern: ((\d{1,3})\.){3}\d{1,3}/\d{1,2}
+    ConstraintDescription: CIDR Block (eg 10.0.0.0/16)
+    Default: 10.0.2.0/24
+  PrivateSubnet0Cidr: 
+    Description: CIDR block for PrivateSubnet0
+    Type: String
+    AllowedPattern: ((\d{1,3})\.){3}\d{1,3}/\d{1,2}
+    ConstraintDescription: CIDR Block (eg 10.0.0.0/16)
+    Default: 10.0.3.0/24
+  PrivateSubnet1Cidr: 
+    Description: CIDR block for PrivateSubnet1
+    Type: String
+    AllowedPattern: ((\d{1,3})\.){3}\d{1,3}/\d{1,2}
+    ConstraintDescription: CIDR Block (eg 10.0.0.0/16)
+    Default: 10.0.4.0/24
+  AllowedIP:
+    Description: IP address or CIDR block allowed to SSH into OpenVPN server
+    Type: String
+    AllowedPattern: ((\d{1,3})\.){3}\d{1,3}/\d{1,2}
+    ConstraintDescription: IP address (eg 123.123.123.123/32) or CIDR Block (eg 10.0.0.0/16)
+    Default: 0.0.0.0/0
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 
+        Ref: VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-VPC
+
+  PublicSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      CidrBlock: 
+        Ref: PublicSubnet0Cidr
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PublicSubnet0
+      VpcId:
+        Ref: Vpc
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      CidrBlock:
+        Ref: PublicSubnet1Cidr
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PublicSubnet1
+      VpcId:
+        Ref: Vpc
+
+  PrivateSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 
+        Ref: PrivateSubnet0Cidr
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PrivateSubnet0
+      VpcId:
+        Ref: Vpc
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock:
+        Ref: PrivateSubnet1Cidr
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PrivateSubnet1
+      VpcId:
+        Ref: Vpc
+
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PublicRT
+      VpcId:
+        Ref: Vpc
+
+  PrivateRT0:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PrivateRT0
+      VpcId:
+        Ref: Vpc
+
+  PrivateRT1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-PrivateRT1
+      VpcId:
+        Ref: Vpc
+
+  PublicSubnet0Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRT
+      SubnetId:
+        Ref: PublicSubnet0
+
+  PublicSubnet1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRT
+      SubnetId:
+        Ref: PublicSubnet1
+
+  PrivateSubnet0Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PrivateRT0
+      SubnetId:
+        Ref: PrivateSubnet0
+
+  PrivateSubnet1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PrivateRT1
+      SubnetId:
+        Ref: PrivateSubnet1
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Sub ${AWS::StackName}-InternetGateway
+
+  AttachIgw:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId:
+        Ref: InternetGateway
+      VpcId:
+        Ref: Vpc
+
+  PublicRTIgwRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIgw
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+      RouteTableId:
+        Ref: PublicRT
+
+  NatGateway0EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGateway0:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - NatGateway0EIP
+        - AllocationId
+      SubnetId:
+        Ref: PublicSubnet0
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - NatGateway1EIP
+        - AllocationId
+      SubnetId:
+        Ref: PublicSubnet1
+
+  NatGateway0PrivateRT0:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NatGateway0
+      RouteTableId:
+        Ref: PrivateRT0
+
+  NatGateway1PrivateRT1:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NatGateway1
+      RouteTableId:
+        Ref: PrivateRT1
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for application tier
+      SecurityGroupIngress:
+      - FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
+        SourceSecurityGroupId: !Ref AppELBSecurityGroup
+      - FromPort: 22
+        ToPort: 22
+        IpProtocol: tcp
+        CidrIp: !Ref VpcCidr
+      VpcId:
+        Ref: Vpc
+
+  AppELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for application ELB
+      SecurityGroupIngress:
+      - FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
+        CidrIp: 0.0.0.0/0
+      - FromPort: 443
+        ToPort: 443
+        IpProtocol: tcp
+        CidrIp: 0.0.0.0/0
+      VpcId:
+        Ref: Vpc
+
+  OpenVPNSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for OpenVPN server
+      SecurityGroupIngress:
+      - CidrIp: !Ref AllowedIP
+        FromPort: 22
+        ToPort: 22
+        IpProtocol: tcp
+      - CidrIp: 0.0.0.0/0
+        FromPort: 943
+        ToPort: 943
+        IpProtocol: tcp
+      - CidrIp: 0.0.0.0/0
+        FromPort: 443
+        ToPort: 443
+        IpProtocol: tcp
+      - CidrIp: 0.0.0.0/0
+        FromPort: 1194
+        ToPort: 1194
+        IpProtocol: tcp
+      VpcId:
+        Ref: Vpc
+
+  AWXSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for AWX
+      SecurityGroupIngress:
+      - FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
+        CidrIp: 0.0.0.0/0
+      - FromPort: 443
+        ToPort: 443
+        IpProtocol: tcp
+        CidrIp: 0.0.0.0/0
+      - FromPort: 22
+        ToPort: 22
+        IpProtocol: tcp
+        CidrIp: !Ref AllowedIP
+      VpcId:
+        Ref: Vpc
+
+Outputs:
+  VpcId:
+    Value:
+      Ref: Vpc
+    Export:  
+      Name: !Sub ${AWS::StackName}-VpcId
+  VpcCidr:
+    Value:
+      Ref: VpcCidr
+    Export:  
+      Name: !Sub ${AWS::StackName}-VpcCidr
+  PrivateSubnet0:
+    Value:
+      Ref: PrivateSubnet0
+    Export:  
+      Name: !Sub ${AWS::StackName}-PrivateSubnet0
+  PrivateSubnet0Cidr:
+    Value:
+      Ref: PrivateSubnet0Cidr
+    Export:  
+      Name: !Sub ${AWS::StackName}-PrivateSubnet0Cidr
+  PrivateSubnet1:
+    Value:
+      Ref: PrivateSubnet1
+    Export:  
+      Name: !Sub ${AWS::StackName}-PrivateSubnet1
+  PrivateSubnet1Cidr:
+    Value:
+      Ref: PrivateSubnet1Cidr
+    Export:  
+      Name: !Sub ${AWS::StackName}-PrivateSubnet1Cidr
+  PublicSubnet0:
+    Value:
+      Ref: PublicSubnet0
+    Export:  
+      Name: !Sub ${AWS::StackName}-PublicSubnet0
+  PublicSubnet0Cidr:
+    Value:
+      Ref: PublicSubnet0Cidr
+    Export:  
+      Name: !Sub ${AWS::StackName}-PublicSubnet0Cidr
+  PublicSubnet1:
+    Value:
+      Ref: PublicSubnet1
+    Export:  
+      Name: !Sub ${AWS::StackName}-PublicSubnet1
+  PublicSubnet1Cidr:
+    Value:
+      Ref: PublicSubnet1Cidr
+    Export:  
+      Name: !Sub ${AWS::StackName}-PublicSubnet1Cidr
+  AppSecurityGroup:
+    Description: The security group ID for App tier
+    Export:
+      Name: !Sub ${AWS::StackName}-AppSecurityGroup
+    Value:
+      Fn::GetAtt:
+      - AppSecurityGroup
+      - GroupId
+  AppELBSecurityGroup:
+    Description: The security group ID for App ELB
+    Export:
+      Name: !Sub ${AWS::StackName}-AppELBSecurityGroup
+    Value:
+      Fn::GetAtt:
+      - AppELBSecurityGroup
+      - GroupId
+  OpenVPNSecurityGroup:
+    Description: The security group ID for OpenVPN server
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenVPNSecurityGroup
+    Value:
+      Fn::GetAtt:
+      - OpenVPNSecurityGroup
+      - GroupId
+
+
+

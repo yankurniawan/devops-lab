@@ -1,0 +1,12 @@
+- hosts: all
+  become: yes
+  vars:
+    apache_vhosts:
+      - servername: "devops.yankurniawan.com"
+        documentroot: "/var/www/html"
+        extra_parameters: |
+          RewriteCond %{HTTP:X-Forwarded-Proto} =http
+          RewriteRule .* https://%{HTTP:Host}%{REQUEST_URI} [L,R=permanent]
+  roles:
+    - geerlingguy.apache
+    - demo-web
